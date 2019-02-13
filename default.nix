@@ -8,24 +8,24 @@ let
     sha256 = "1wcyzmbrs0rzva7jwnqa4vqr34z1sv1cigpyyiaajkf8bx29pamw";
   }) { inherit pkgs; };
 
-in pkgs.stdenv.mkDerivation {
+  binary = pkgs.rustPlatform.buildRustPackage rec {
+    name = "update-fetch-derivations-rs";
+    version = "0.1.0";
+    src = ./.;
+    cargoSha256 = "0dxmw28hiv21vmdvlbkz0knn665m24sq1101jyp8x6la9im3pg0z";
+  };
+
+in pkgs.runCommand "update-fetch-derivations" {
   name = "update-fetch-derivations";
-
-  src = ./.;
-
   buildInputs = [
     pkgs.makeWrapper
   ];
-
-  installPhase = ''
+} ''
     mkdir -p $out/bin
-    install -D -m555 -t $out/bin update-fetch-derivations
+    install -D -m555 -t $out/bin ${binary}/bin/update-fetch-derivations
 
     wrapProgram $out/bin/update-fetch-derivations \
       --prefix PATH : ${pkgs.lib.makeBinPath [
-        pkgs.coreutils
-        pkgs.perl
         prefetch-github
       ]}
-  '';
-}
+  ''
