@@ -4,8 +4,8 @@ let
   prefetch-github = import (pkgs.fetchFromGitHub {
     owner = "justinwoo";
     repo = "prefetch-github";
-    rev = "3b7bf4ba8b8e2dba3df78d82e613818bbf0f244a";
-    sha256 = "127c8qgjw64y29mjqi3ww7v78immzjvq0aw8rwhr3krd1vsdcl4n";
+    rev = "ecc358529592f403d24a955c293922124c4354f7";
+    sha256 = "1wcyzmbrs0rzva7jwnqa4vqr34z1sv1cigpyyiaajkf8bx29pamw";
   }) { inherit pkgs; };
 
 in pkgs.stdenv.mkDerivation {

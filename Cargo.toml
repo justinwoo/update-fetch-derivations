@@ -1,0 +1,11 @@
+[package]
+name = "update-fetch-derivations"
+version = "0.1.0"
+authors = ["justinwoo <moomoowoo@gmail.com>"]
+
+[dependencies]
+regex = "1"
+
+[[bin]]
+name = "update-fetch-derivations"
+path = "update-fetch-derivations.rs"
