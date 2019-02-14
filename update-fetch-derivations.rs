@@ -66,6 +66,11 @@ use std::process::Command;
 // fetchgit
 // fetchurl
 
+struct ReplaceResults {
+    count: usize,
+    acc: String,
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let target_file_path = args.get(1).expect(EXPECT_FILE_PATH_ARG_MSG);
@@ -79,6 +84,17 @@ fn main() {
         .expect("Could not extract contents of specified in_file.");
     drop(in_file);
 
+    let ReplaceResults { count, acc } = update_fetch_from_github(contents);
+
+    let mut out_file = File::create(target_file_path)
+        .unwrap_or_else(|_| panic!("invalid out_file path provided: {}", target_file_path));
+    out_file
+        .write_fmt(format_args!("{}", acc))
+        .unwrap_or_else(|_| panic!("Unable to write to out_file {}", target_file_path));
+    println!("updated {} derivations in {}", count, target_file_path);
+}
+
+fn update_fetch_from_github(contents: String) -> ReplaceResults {
     let mut acc: String = String::new();
 
     let github_regex = RegexBuilder::new(r"(fetchFromGitHub \{)(.*?)(\})")
@@ -130,15 +146,15 @@ fn main() {
         acc.push_str(inner3);
         acc.push_str(&cap[3]);
     }
-    let count = lits.len() - 1;
-    acc.push_str(lits.last().unwrap());
 
-    let mut out_file = File::create(target_file_path)
-        .unwrap_or_else(|_| panic!("invalid out_file path provided: {}", target_file_path));
-    out_file
-        .write_fmt(format_args!("{}", acc))
-        .unwrap_or_else(|_| panic!("Unable to write to out_file {}", target_file_path));
-    println!("updated {} derivations in {}", count, target_file_path);
+    if let Some(s) = lits.last() {
+        acc.push_str(s);
+    };
+
+    ReplaceResults {
+        count: lits.len() - 1,
+        acc,
+    }
 }
 
 const EXPECT_FILE_PATH_ARG_MSG: &str = r#"
