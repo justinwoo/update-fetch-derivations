@@ -1,6 +1,6 @@
-# Update-Fetch-Derivations
+[![Build Status](https://travis-ci.org/justinwoo/update-fetch-derivations.svg?branch=master)](https://travis-ci.org/justinwoo/update-fetch-derivations)
 
-[![Build Status](https://travis-ci.com/justinwoo/update-fetch-derivations.svg?branch=master)](https://travis-ci.com/justinwoo/update-fetch-derivations)
+# update-fetch-derivations
 
 Update some fetchFromGitHub usages in a nix source file.
 
@@ -49,3 +49,5 @@ index 9af00b8..c0b2caa 100644
  in {
    inherit a;
 ```
+
+Current version: 0.1.0

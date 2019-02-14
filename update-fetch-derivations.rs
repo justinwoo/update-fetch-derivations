@@ -1,4 +1,54 @@
-extern crate regex;
+/*!
+Update some fetchFromGitHub usages in a nix source file.
+
+# Usage
+
+```text
+update-fetch-derivations
+    Update GitHub fetch revisions and hashes for a given nix source file.
+
+    Example:
+
+      update-fetch-derivation fetch-from-github.nix
+```
+
+# Example:
+
+From ./test:
+
+```diff
+> update-fetch-derivations fetch-from-github.nix
+Updated 2 matches of fetchFromGitHub in fetch-from-github.nix
+
+> gid
+diff --git a/test/fetch-from-github.nix b/test/fetch-from-github.nix
+index 9af00b8..c0b2caa 100644
+--- a/test/fetch-from-github.nix
++++ b/test/fetch-from-github.nix
+@@ -4,15 +4,15 @@ let
+   a = import (pkgs.fetchFromGitHub {
+     owner = "justinwoo";
+     repo = "easy-dhall-nix";
+-    rev = "testrev";
+-    sha256 = "testsha";
++    rev = "9e3b8744db0a9d369675a4b12a955614b8100449";
++    sha256 = "00ww6fhv8lvihjfzjzpd4kgfqx8isk4nalmc79vh9mhfv7ya0m5p";
+   }) {};
+
+   b = pkgs.fetchFromGitHub {
+     owner = "justinwoo";
+     repo = "easy-purescript-nix";
+-    rev = "testrev";
+-    sha256 = "testsha";
++    rev = "993f63359b64db080061b274e4688e3b80c4f68e";
++    sha256 = "18b7fmmxkg38y1av9kfgcv2rikdlji51ya5b9p7sy3aml2hprmi5";
+   };
+ in {
+   inherit a;
+```
+*/
+
+#![warn(missing_docs, rust_2018_idioms, clippy::all)]
 
 use regex::Captures;
 use regex::Regex;
@@ -21,10 +71,11 @@ fn main() {
     let target_file_path = args.get(1).expect(EXPECT_FILE_PATH_ARG_MSG);
 
     let mut in_file = File::open(target_file_path)
-        .expect(&format!("invalid in_file path provided: {}", target_file_path));
+        .unwrap_or_else(|_| panic!("invalid in_file path provided: {}", target_file_path));
 
     let mut contents: String = String::new();
-    in_file.read_to_string(&mut contents)
+    in_file
+        .read_to_string(&mut contents)
         .expect("Could not extract contents of specified in_file.");
     drop(in_file);
 
@@ -50,27 +101,27 @@ fn main() {
     let sha256_regex: Regex = Regex::new(r#"(sha256 = ")(.*?)(";)"#).unwrap();
 
     for (i, cap) in caps.enumerate() {
-        let mut inner = &cap[2];
+        let inner = &cap[2];
         let owner = &owner_regex.captures(inner).unwrap()[1];
         let repo = &repo_regex.captures(inner).unwrap()[1];
         println!("Fetching: {}/{}", owner, repo);
 
-        let prefetch_result =
-          Command::new("prefetch-github")
+        let prefetch_result = Command::new("prefetch-github")
             .arg("-owner")
             .arg(owner)
             .arg("-repo")
             .arg(repo)
             .output()
-            .expect("Failed to launch prefetch-github").stdout;
+            .expect("Failed to launch prefetch-github")
+            .stdout;
         let result: String = String::from_utf8(prefetch_result).unwrap();
         let rev = &rev_regex.captures(&result).unwrap()[2];
         let sha256 = &sha256_regex.captures(&result).unwrap()[2];
 
-        let inner2 = &rev_regex.replace(inner, |caps: &Captures| {
+        let inner2 = &rev_regex.replace(inner, |caps: &Captures<'_>| {
             format!("{}{}{}", &caps[1], rev, &caps[3])
         });
-        let inner3 = &sha256_regex.replace(inner2, |caps: &Captures| {
+        let inner3 = &sha256_regex.replace(inner2, |caps: &Captures<'_>| {
             format!("{}{}{}", &caps[1], sha256, &caps[3])
         });
 
@@ -83,12 +134,14 @@ fn main() {
     acc.push_str(lits.last().unwrap());
 
     let mut out_file = File::create(target_file_path)
-        .expect(&format!("invalid out_file path provided: {}", target_file_path));
-    out_file.write_fmt(format_args!("{}", acc)).expect(&format!("Unable to write to out_file {}", target_file_path));
+        .unwrap_or_else(|_| panic!("invalid out_file path provided: {}", target_file_path));
+    out_file
+        .write_fmt(format_args!("{}", acc))
+        .unwrap_or_else(|_| panic!("Unable to write to out_file {}", target_file_path));
     println!("updated {} derivations in {}", count, target_file_path);
 }
 
-const EXPECT_FILE_PATH_ARG_MSG: &'static str = r#"
+const EXPECT_FILE_PATH_ARG_MSG: &str = r#"
 Need an argument for what in_file to process.
 
 Usage Examples:
