@@ -2,6 +2,7 @@
 name = "update-fetch-derivations"
 version = "0.1.0"
 authors = ["justinwoo <moomoowoo@gmail.com>"]
+edition = "2018"
 
 [dependencies]
 regex = "1"
@@ -9,3 +10,6 @@ regex = "1"
 [[bin]]
 name = "update-fetch-derivations"
 path = "update-fetch-derivations.rs"
+
+[badges]
+travis-ci = { repository = "justinwoo/update-fetch-derivations", branch = "master" }
