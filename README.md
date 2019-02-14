@@ -49,5 +49,3 @@ index 9af00b8..c0b2caa 100644
  in {
    inherit a;
 ```
-
-Current version: 0.1.0
