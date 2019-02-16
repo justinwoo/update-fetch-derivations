@@ -1,5 +1,5 @@
 /*!
-Update some fetchFromGitHub usages in a nix source file.
+Update some fetchgit/fetchFromGitHub usages in a nix source file.
 
 # Usage
 
@@ -18,7 +18,7 @@ From ./test:
 
 ```diff
 > update-fetch-derivations fetch-from-github.nix
-Updated 2 matches of fetchFromGitHub in fetch-from-github.nix
+Updated 2 matches of fetchgit/fetchFromGitHub in fetch-from-github.nix
 
 > gid
 diff --git a/test/fetch-from-github.nix b/test/fetch-from-github.nix
@@ -59,18 +59,6 @@ use std::io::prelude::*;
 use std::iter::FromIterator;
 use std::process::Command;
 
-// main goal:
-// fetchFromGithub
-
-// stretch goals:
-// fetchgit
-// fetchurl
-
-struct ReplaceResults {
-    count: usize,
-    acc: String,
-}
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     let target_file_path = args.get(1).expect(EXPECT_FILE_PATH_ARG_MSG);
@@ -83,18 +71,20 @@ fn main() {
         .read_to_string(&mut contents)
         .expect("Could not extract contents of specified in_file.");
     drop(in_file);
+    let mut count: usize = 0;
 
-    let ReplaceResults { count, acc } = update_fetch_from_github(&contents);
+    update_fetch_from_github(&mut contents, &mut count);
+    update_fetch_git(&mut contents, &mut count);
 
     let mut out_file = File::create(target_file_path)
         .unwrap_or_else(|_| panic!("invalid out_file path provided: {}", target_file_path));
     out_file
-        .write_fmt(format_args!("{}", acc))
+        .write_fmt(format_args!("{}", contents))
         .unwrap_or_else(|_| panic!("Unable to write to out_file {}", target_file_path));
     println!("updated {} derivations in {}", count, target_file_path);
 }
 
-fn update_fetch_from_github(contents: &str) -> ReplaceResults {
+fn update_fetch_from_github(contents: &mut String, count: &mut usize) {
     let mut acc: String = String::new();
 
     let github_regex = RegexBuilder::new(r"(fetchFromGitHub \{)(.*?)(\})")
@@ -151,11 +141,69 @@ fn update_fetch_from_github(contents: &str) -> ReplaceResults {
         acc.push_str(s);
     };
 
-    ReplaceResults {
-        count: lits.len() - 1,
-        acc,
-    }
+    *count += lits.len() - 1;
+    *contents = acc;
 }
+
+fn update_fetch_git(contents: &mut String, count: &mut usize) {
+    let mut acc: String = String::new();
+
+    let fetchgit_regex = RegexBuilder::new(r"(fetchgit \{)(.*?)(\})")
+        .dot_matches_new_line(true)
+        .build()
+        .unwrap();
+
+    let lits = Vec::from_iter(fetchgit_regex.split(&contents));
+    let caps = fetchgit_regex.captures_iter(&contents);
+
+    let url_regex: Regex = Regex::new(r#"url = "(.*?)";"#).unwrap();
+    let rev_regex: Regex = Regex::new(r#"(rev = ")(.*?)(";)"#).unwrap();
+    let sha256_regex: Regex = Regex::new(r#"(sha256 = ")(.*?)(";)"#).unwrap();
+
+    let rev_json_regex: Regex = Regex::new(r#"("rev": ")(.*?)(",)"#).unwrap();
+    let sha256_json_regex: Regex = Regex::new(r#"("sha256": ")(.*?)(",)"#).unwrap();
+
+    for (i, cap) in caps.enumerate() {
+        let inner = &cap[2];
+        let url = &url_regex.captures(inner).unwrap()[1];
+        println!("Fetching: {}", url);
+
+        let prefetch_result = Command::new("nix-prefetch-git")
+            .arg(url)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .output()
+            .expect("Failed to launch nix-prefetch-git")
+            .stdout;
+        let result: String = String::from_utf8(prefetch_result).unwrap();
+        let rev = &rev_json_regex.captures(&result).unwrap()[2];
+        let sha256 = &sha256_json_regex.captures(&result).unwrap()[2];
+
+        if sha256 == INVALID_PREFETCH_GIT_SHA {
+            panic!("nix-prefetch-git could not find the repository at the url: {}", url)
+        }
+
+        let inner2 = &rev_regex.replace(inner, |caps: &Captures<'_>| {
+            format!("{}{}{}", &caps[1], rev, &caps[3])
+        });
+        let inner3 = &sha256_regex.replace(inner2, |caps: &Captures<'_>| {
+            format!("{}{}{}", &caps[1], sha256, &caps[3])
+        });
+
+        acc.push_str(lits[i]);
+        acc.push_str(&cap[1]);
+        acc.push_str(inner3);
+        acc.push_str(&cap[3]);
+    }
+
+    if let Some(s) = lits.last() {
+        acc.push_str(s);
+    };
+
+    *count += lits.len() - 1;
+    *contents = acc;
+}
+
+const INVALID_PREFETCH_GIT_SHA: &str = "0sjjj9z1dhilhpc8pq4154czrb79z9cm044jvn75kxcjv6v5l2m5";
 
 const EXPECT_FILE_PATH_ARG_MSG: &str = r#"
 Need an argument for what in_file to process.
