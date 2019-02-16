@@ -19,18 +19,27 @@ main :: IO ()
 main = do
   runWithExpectation Non "update-fetch-derivations fetch-from-github.nix"
   runWithExpectation Oui gitErrorOnDiff
-  runWithExpectation Non resetFiles
+  resetFiles
 
   runWithExpectation Non "update-fetch-derivations fetchgit-success.nix"
   runWithExpectation Oui gitErrorOnDiff
-  runWithExpectation Non resetFiles
+  resetFiles
 
   runWithExpectation Oui "update-fetch-derivations fetchgit-failure.nix"
   runWithExpectation Non gitErrorOnDiff
-  runWithExpectation Non resetFiles
+  resetFiles
+
+  runWithExpectation Non "update-fetch-derivations fetchurl-success.nix"
+  runWithExpectation Oui gitErrorOnDiff
+  resetFiles
+
+  -- this will not error on a failed update, simply warn
+  runWithExpectation Non "update-fetch-derivations fetchurl-success-2.nix"
+  runWithExpectation Non gitErrorOnDiff
+  resetFiles
 
   putStrLn "tests passed."
 
   where
     gitErrorOnDiff = "git diff --exit-code --quiet"
-    resetFiles = "git checkout *.nix"
+    resetFiles = runWithExpectation Non "git checkout *.nix"

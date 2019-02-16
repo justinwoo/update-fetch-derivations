@@ -77,6 +77,7 @@ fn main() {
 
     update_fetch_from_github(&mut contents, &mut count);
     update_fetch_git(&mut contents, &mut count);
+    update_fetch_url(&mut contents, &mut count);
 
     let mut out_file = File::create(target_file_path)
         .unwrap_or_else(|_| panic!("invalid out_file path provided: {}", target_file_path));
@@ -166,34 +167,109 @@ fn update_fetch_git(contents: &mut String, count: &mut usize) {
     let sha256_json_regex: Regex = Regex::new(r#"("sha256": ")(.*?)(",)"#).unwrap();
 
     for (i, cap) in caps.enumerate() {
-        let inner = &cap[2];
-        let url = &url_regex.captures(inner).unwrap()[1];
+        let mut inner = String::from(&cap[2]);
+        let url = &url_regex.captures(&inner).unwrap()[1];
         println!("Fetching: {}", url);
 
-        let prefetch_result = Command::new("nix-prefetch-git")
+        let prefetch_attempt = Command::new("nix-prefetch-git")
             .arg(url)
+            .arg("--quiet")
             .env("GIT_TERMINAL_PROMPT", "0")
             .output()
-            .expect("Failed to launch nix-prefetch-git")
-            .stdout;
-        let result: String = String::from_utf8(prefetch_result).unwrap();
-        let rev = &rev_json_regex.captures(&result).unwrap()[2];
-        let sha256 = &sha256_json_regex.captures(&result).unwrap()[2];
+            .expect("Failed to launch nix-prefetch-git");
 
-        if sha256 == INVALID_PREFETCH_GIT_SHA {
-            panic!("nix-prefetch-git could not find the repository at the url: {}", url)
+        if prefetch_attempt.status.success() {
+            let result: String = String::from_utf8(prefetch_attempt.stdout).unwrap();
+            let rev = &rev_json_regex.captures(&result).unwrap()[2];
+            let sha256 = &sha256_json_regex.captures(&result).unwrap()[2];
+
+            if sha256 == INVALID_PREFETCH_GIT_SHA {
+                panic!(
+                    "nix-prefetch-git could not find the repository at the url: {}",
+                    url
+                )
+            }
+
+            inner = rev_regex
+                .replace(&inner, |caps: &Captures<'_>| {
+                    format!("{}{}{}", &caps[1], rev, &caps[3])
+                })
+                .to_owned()
+                .to_string();
+
+            inner = sha256_regex
+                .replace(&inner, |caps: &Captures<'_>| {
+                    format!("{}{}{}", &caps[1], sha256, &caps[3])
+                })
+                .to_owned()
+                .to_string();
+        } else {
+            println!(
+                "warning: error from nix-prefetch-git: {:?}",
+                String::from_utf8(prefetch_attempt.stderr)
+            );
         }
-
-        let inner2 = &rev_regex.replace(inner, |caps: &Captures<'_>| {
-            format!("{}{}{}", &caps[1], rev, &caps[3])
-        });
-        let inner3 = &sha256_regex.replace(inner2, |caps: &Captures<'_>| {
-            format!("{}{}{}", &caps[1], sha256, &caps[3])
-        });
 
         acc.push_str(lits[i]);
         acc.push_str(&cap[1]);
-        acc.push_str(inner3);
+        acc.push_str(&inner);
+        acc.push_str(&cap[3]);
+    }
+
+    if let Some(s) = lits.last() {
+        acc.push_str(s);
+    };
+
+    *count += lits.len() - 1;
+    *contents = acc;
+}
+
+fn update_fetch_url(contents: &mut String, count: &mut usize) {
+    let mut acc: String = String::new();
+
+    let fetchurl_regex = RegexBuilder::new(r"(fetchurl \{)(.*?)(\})")
+        .dot_matches_new_line(true)
+        .build()
+        .unwrap();
+
+    let lits = Vec::from_iter(fetchurl_regex.split(&contents));
+    let caps = fetchurl_regex.captures_iter(&contents);
+
+    let url_regex: Regex = Regex::new(r#"url = "(.*?)";"#).unwrap();
+    let sha256_regex: Regex = Regex::new(r#"(sha256 = ")(.*?)(";)"#).unwrap();
+
+    for (i, cap) in caps.enumerate() {
+        let mut inner = String::from(&cap[2]);
+        if let Some(matches) = url_regex.captures(&inner) {
+            let url = &matches[1];
+            println!("Fetching: {}", url);
+
+            let prefetch_attempt = Command::new("prefetch-url")
+                .arg(url)
+                .output()
+                .expect("Failed to launch prefetch-url");
+
+            if prefetch_attempt.status.success() {
+                let result: String = String::from_utf8(prefetch_attempt.stdout).unwrap();
+                let sha256 = &sha256_regex.captures(&result).unwrap()[2];
+
+                inner = sha256_regex
+                    .replace(&inner, |caps: &Captures<'_>| {
+                        format!("{}{}{}", &caps[1], sha256, &caps[3])
+                    })
+                    .to_owned()
+                    .to_string();
+            } else {
+                println!(
+                    "warning: error from prefetch-url while fetching: {:?}",
+                    String::from_utf8(prefetch_attempt.stderr)
+                );
+            }
+        };
+
+        acc.push_str(lits[i]);
+        acc.push_str(&cap[1]);
+        acc.push_str(&inner);
         acc.push_str(&cap[3]);
     }
 
