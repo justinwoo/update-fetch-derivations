@@ -27,5 +27,6 @@ in pkgs.runCommand "update-fetch-derivations" {
     wrapProgram $out/bin/update-fetch-derivations \
       --prefix PATH : ${pkgs.lib.makeBinPath [
         prefetch-github
+        pkgs.nix-prefetch-git
       ]}
   ''

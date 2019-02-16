@@ -1,5 +1,5 @@
 default:
-	nix-shell --run 'make update'
+	nix-shell --run 'make test'
 
-update:
-	update-fetch-derivations fetch-from-github.nix
+test:
+	./test.hs
