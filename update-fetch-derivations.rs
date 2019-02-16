@@ -84,7 +84,7 @@ fn main() {
         .expect("Could not extract contents of specified in_file.");
     drop(in_file);
 
-    let ReplaceResults { count, acc } = update_fetch_from_github(contents);
+    let ReplaceResults { count, acc } = update_fetch_from_github(&contents);
 
     let mut out_file = File::create(target_file_path)
         .unwrap_or_else(|_| panic!("invalid out_file path provided: {}", target_file_path));
@@ -94,7 +94,7 @@ fn main() {
     println!("updated {} derivations in {}", count, target_file_path);
 }
 
-fn update_fetch_from_github(contents: String) -> ReplaceResults {
+fn update_fetch_from_github(contents: &str) -> ReplaceResults {
     let mut acc: String = String::new();
 
     let github_regex = RegexBuilder::new(r"(fetchFromGitHub \{)(.*?)(\})")
