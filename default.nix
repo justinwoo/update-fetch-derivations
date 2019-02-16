@@ -8,6 +8,13 @@ let
     sha256 = "1wcyzmbrs0rzva7jwnqa4vqr34z1sv1cigpyyiaajkf8bx29pamw";
   }) { inherit pkgs; };
 
+  prefetch-url = import (pkgs.fetchFromGitHub {
+    owner = "justinwoo";
+    repo = "prefetch-url";
+    rev = "71a74a6facfe8bd81ad0e571ef382b9abd887718";
+    sha256 = "1qgdpy7qxlz81sf55lyswwjyzn99siy745k3w4y7l26w68zjrjki";
+  }) { inherit pkgs; };
+
   binary = pkgs.rustPlatform.buildRustPackage rec {
     name = "update-fetch-derivations-rs";
     version = "0.1.0";
@@ -27,6 +34,7 @@ in pkgs.runCommand "update-fetch-derivations" {
     wrapProgram $out/bin/update-fetch-derivations \
       --prefix PATH : ${pkgs.lib.makeBinPath [
         prefetch-github
+        prefetch-url
         pkgs.nix-prefetch-git
       ]}
   ''
