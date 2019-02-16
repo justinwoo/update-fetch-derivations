@@ -2,7 +2,7 @@
 
 # update-fetch-derivations
 
-Update some fetchFromGitHub usages in a nix source file.
+Update some fetchgit/fetchFromGitHub usages in a nix source file.
 
 ## Usage
 
@@ -21,11 +21,13 @@ From ./test:
 
 ```diff
 > update-fetch-derivations fetch-from-github.nix
-Updated 2 matches of fetchFromGitHub in fetch-from-github.nix
+Fetching: justinwoo/easy-dhall-nix
+Fetching: justinwoo/easy-purescript-nix
+updated 2 derivations in fetch-from-github.nix
 
 > gid
 diff --git a/test/fetch-from-github.nix b/test/fetch-from-github.nix
-index 9af00b8..c0b2caa 100644
+index 9af00b8..5974894 100644
 --- a/test/fetch-from-github.nix
 +++ b/test/fetch-from-github.nix
 @@ -4,15 +4,15 @@ let
@@ -43,8 +45,8 @@ index 9af00b8..c0b2caa 100644
      repo = "easy-purescript-nix";
 -    rev = "testrev";
 -    sha256 = "testsha";
-+    rev = "993f63359b64db080061b274e4688e3b80c4f68e";
-+    sha256 = "18b7fmmxkg38y1av9kfgcv2rikdlji51ya5b9p7sy3aml2hprmi5";
++    rev = "d9e92b89b53865e93a56d19b2f1e55dc0c344696";
++    sha256 = "1miphbm0m3i7mrjyyb8s97ka62pwgvql8vry0jqz8zdllfqm0rh2";
    };
  in {
    inherit a;
