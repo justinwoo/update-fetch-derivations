@@ -88,29 +88,17 @@ fn main() {
 }
 
 fn update_fetch_from_github(contents: &mut String, count: &mut usize) {
-    let mut acc: String = String::new();
-
     let github_regex = RegexBuilder::new(r"(fetchFromGitHub \{)(.*?)(\})")
         .dot_matches_new_line(true)
         .build()
         .unwrap();
-
-    // ABA pattern: N(lits) - 1 = N(caps)
-    let lits = Vec::from_iter(github_regex.split(&contents));
-    let caps = github_regex.captures_iter(&contents);
-
-    // how this works:
-    // put together all the literal and captured segments, in ABABA pattern.
-    // the inner matched section of a capture segment should be updated
-    // updating involves calling `prefetch-github`
 
     let owner_regex: Regex = Regex::new(r#"owner = "(.*?)";"#).unwrap();
     let repo_regex: Regex = Regex::new(r#"repo = "(.*?)";"#).unwrap();
     let rev_regex: Regex = Regex::new(r#"(rev = ")(.*?)(";)"#).unwrap();
     let sha256_regex: Regex = Regex::new(r#"(sha256 = ")(.*?)(";)"#).unwrap();
 
-    for (i, cap) in caps.enumerate() {
-        let inner = &cap[2];
+    update_contents_by_inner(contents, count, github_regex, |inner: &mut String| {
         let owner = &owner_regex.captures(inner).unwrap()[1];
         let repo = &repo_regex.captures(inner).unwrap()[1];
         println!("Fetching: {}/{}", owner, repo);
@@ -127,37 +115,26 @@ fn update_fetch_from_github(contents: &mut String, count: &mut usize) {
         let rev = &rev_regex.captures(&result).unwrap()[2];
         let sha256 = &sha256_regex.captures(&result).unwrap()[2];
 
-        let inner2 = &rev_regex.replace(inner, |caps: &Captures<'_>| {
-            format!("{}{}{}", &caps[1], rev, &caps[3])
-        });
-        let inner3 = &sha256_regex.replace(inner2, |caps: &Captures<'_>| {
-            format!("{}{}{}", &caps[1], sha256, &caps[3])
-        });
-
-        acc.push_str(lits[i]);
-        acc.push_str(&cap[1]);
-        acc.push_str(inner3);
-        acc.push_str(&cap[3]);
-    }
-
-    if let Some(s) = lits.last() {
-        acc.push_str(s);
-    };
-
-    *count += lits.len() - 1;
-    *contents = acc;
+        *inner = rev_regex
+            .replace(inner, |caps: &Captures<'_>| {
+                format!("{}{}{}", &caps[1], rev, &caps[3])
+            })
+            .to_owned()
+            .to_string();
+        *inner = sha256_regex
+            .replace(inner, |caps: &Captures<'_>| {
+                format!("{}{}{}", &caps[1], sha256, &caps[3])
+            })
+            .to_owned()
+            .to_string();
+    });
 }
 
 fn update_fetch_git(contents: &mut String, count: &mut usize) {
-    let mut acc: String = String::new();
-
     let fetchgit_regex = RegexBuilder::new(r"(fetchgit \{)(.*?)(\})")
         .dot_matches_new_line(true)
         .build()
         .unwrap();
-
-    let lits = Vec::from_iter(fetchgit_regex.split(&contents));
-    let caps = fetchgit_regex.captures_iter(&contents);
 
     let url_regex: Regex = Regex::new(r#"url = "(.*?)";"#).unwrap();
     let rev_regex: Regex = Regex::new(r#"(rev = ")(.*?)(";)"#).unwrap();
@@ -166,8 +143,7 @@ fn update_fetch_git(contents: &mut String, count: &mut usize) {
     let rev_json_regex: Regex = Regex::new(r#"("rev": ")(.*?)(",)"#).unwrap();
     let sha256_json_regex: Regex = Regex::new(r#"("sha256": ")(.*?)(",)"#).unwrap();
 
-    for (i, cap) in caps.enumerate() {
-        let mut inner = String::from(&cap[2]);
+    update_contents_by_inner(contents, count, fetchgit_regex, |inner: &mut String| {
         let url = &url_regex.captures(&inner).unwrap()[1];
         println!("Fetching: {}", url);
 
@@ -190,14 +166,14 @@ fn update_fetch_git(contents: &mut String, count: &mut usize) {
                 )
             }
 
-            inner = rev_regex
+            *inner = rev_regex
                 .replace(&inner, |caps: &Captures<'_>| {
                     format!("{}{}{}", &caps[1], rev, &caps[3])
                 })
                 .to_owned()
                 .to_string();
 
-            inner = sha256_regex
+            *inner = sha256_regex
                 .replace(&inner, |caps: &Captures<'_>| {
                     format!("{}{}{}", &caps[1], sha256, &caps[3])
                 })
@@ -209,37 +185,19 @@ fn update_fetch_git(contents: &mut String, count: &mut usize) {
                 String::from_utf8(prefetch_attempt.stderr)
             );
         }
-
-        acc.push_str(lits[i]);
-        acc.push_str(&cap[1]);
-        acc.push_str(&inner);
-        acc.push_str(&cap[3]);
-    }
-
-    if let Some(s) = lits.last() {
-        acc.push_str(s);
-    };
-
-    *count += lits.len() - 1;
-    *contents = acc;
+    });
 }
 
 fn update_fetch_url(contents: &mut String, count: &mut usize) {
-    let mut acc: String = String::new();
-
     let fetchurl_regex = RegexBuilder::new(r"(fetchurl \{)(.*?)(\})")
         .dot_matches_new_line(true)
         .build()
         .unwrap();
 
-    let lits = Vec::from_iter(fetchurl_regex.split(&contents));
-    let caps = fetchurl_regex.captures_iter(&contents);
-
     let url_regex: Regex = Regex::new(r#"url = "(.*?)";"#).unwrap();
     let sha256_regex: Regex = Regex::new(r#"(sha256 = ")(.*?)(";)"#).unwrap();
 
-    for (i, cap) in caps.enumerate() {
-        let mut inner = String::from(&cap[2]);
+    update_contents_by_inner(contents, count, fetchurl_regex, |inner: &mut String| {
         if let Some(matches) = url_regex.captures(&inner) {
             let url = &matches[1];
             println!("Fetching: {}", url);
@@ -253,7 +211,7 @@ fn update_fetch_url(contents: &mut String, count: &mut usize) {
                 let result: String = String::from_utf8(prefetch_attempt.stdout).unwrap();
                 let sha256 = &sha256_regex.captures(&result).unwrap()[2];
 
-                inner = sha256_regex
+                *inner = sha256_regex
                     .replace(&inner, |caps: &Captures<'_>| {
                         format!("{}{}{}", &caps[1], sha256, &caps[3])
                     })
@@ -266,6 +224,32 @@ fn update_fetch_url(contents: &mut String, count: &mut usize) {
                 );
             }
         };
+    });
+}
+
+// update contents of a file, mutating the contents and adding to the count of matches.
+// the match regex argument used to break the literal matches and the actual captured groups to be processed.
+// the contents of each capture are called "inner", which is used by the update_inner closure argument.
+fn update_contents_by_inner<F>(
+    contents: &mut String,
+    count: &mut usize,
+    match_regex: Regex,
+    update_inner: F,
+) where
+    F: Fn(&mut String),
+{
+    let mut acc: String = String::new();
+
+    // ABA pattern: N(lits) - 1 = N(caps)
+    // how this works:
+    // put together all the literal and captured segments, in ABABA pattern.
+    // the inner matched section of a capture segment should be updated
+    let lits = Vec::from_iter(match_regex.split(&contents));
+    let caps = match_regex.captures_iter(&contents);
+
+    for (i, cap) in caps.enumerate() {
+        let mut inner = String::from(&cap[2]);
+        update_inner(&mut inner);
 
         acc.push_str(lits[i]);
         acc.push_str(&cap[1]);
