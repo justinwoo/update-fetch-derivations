@@ -75,7 +75,6 @@ fn main() {
     args.par_iter().map(|x| update_file(x)).collect::<()>();
 }
 
-
 fn update_file(target_file_path: &str) {
     let mut in_file = File::open(target_file_path)
         .unwrap_or_else(|_| panic!("invalid in_file path provided: {}", target_file_path));
