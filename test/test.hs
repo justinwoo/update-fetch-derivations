@@ -39,9 +39,10 @@ main = do
   resetFiles
 
   runWithExpectation Non "update-fetch-derivations \
-    \ fetchgit-from-github.nix \
+    \ fetch-from-github.nix \
     \ fetchgit-success.nix \
-    \ fetchgit-success-2"
+    \ fetchurl-success.nix \
+    \ fetchurl-success-2.nix"
   resetFiles
 
   putStrLn "tests passed."
