@@ -52,19 +52,31 @@ index 9af00b8..5974894 100644
 
 #![warn(missing_docs, rust_2018_idioms, clippy::all)]
 
+use rayon::prelude::*;
 use regex::Captures;
 use regex::Regex;
 use regex::RegexBuilder;
 use std::env;
 use std::fs::File;
-use std::io::prelude::*;
+use std::io::Read;
+use std::io::Write;
 use std::iter::FromIterator;
 use std::process::Command;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let target_file_path = args.get(1).expect(EXPECT_FILE_PATH_ARG_MSG);
+    let mut args: Vec<String> = env::args().collect();
 
+    args.remove(0);
+
+    if args.is_empty() {
+        panic!(EXPECT_FILE_PATH_ARG_MSG);
+    }
+
+    args.par_iter().map(|x| update_file(x)).collect::<()>();
+}
+
+
+fn update_file(target_file_path: &str) {
     let mut in_file = File::open(target_file_path)
         .unwrap_or_else(|_| panic!("invalid in_file path provided: {}", target_file_path));
 
@@ -268,12 +280,15 @@ fn update_contents_by_inner<F>(
 const INVALID_PREFETCH_GIT_SHA: &str = "0sjjj9z1dhilhpc8pq4154czrb79z9cm044jvn75kxcjv6v5l2m5";
 
 const EXPECT_FILE_PATH_ARG_MSG: &str = r#"
-Need an argument for what in_file to process.
+Need arguments for what in_files to process.
 
 Usage Examples:
     # update a single in_file
     update-fetch-derivation my-in_file.nix
 
-    # Using fd
+    # Using fd (sequential)
     fd -e nix -x update-fetch-derivation {}
+
+    # Multiple files
+    update-fetch-derivation file1.nix file2.nix file3.nix
 "#;
