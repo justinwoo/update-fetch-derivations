@@ -17,9 +17,9 @@ let
 
   binary = pkgs.rustPlatform.buildRustPackage rec {
     name = "update-fetch-derivations-rs";
-    version = "0.1.0";
+    version = "0.2.0";
     src = ./.;
-    cargoSha256 = "0dxmw28hiv21vmdvlbkz0knn665m24sq1101jyp8x6la9im3pg0z";
+    cargoSha256 = "1p9svbrrxay3frgl22g1jnps4d8dflv684bcmiv9lh00hk77i52y";
   };
 
 in pkgs.runCommand "update-fetch-derivations" {

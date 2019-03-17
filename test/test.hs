@@ -38,6 +38,13 @@ main = do
   runWithExpectation Non gitErrorOnDiff
   resetFiles
 
+  runWithExpectation Non "update-fetch-derivations \
+    \ fetch-from-github.nix \
+    \ fetchgit-success.nix \
+    \ fetchurl-success.nix \
+    \ fetchurl-success-2.nix"
+  resetFiles
+
   putStrLn "tests passed."
 
   where
